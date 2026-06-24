@@ -1,0 +1,334 @@
+{
+  "@context": "https://etzhayyim.com/ns/actor/v1",
+  "@id": "did:web:cargo.etzhayyim.com",
+  "actors": [
+    {
+      "description": "Ocean master bill of lading lifecycle management",
+      "displayName": "Master B/L Manager",
+      "path": "bl:master"
+    },
+    {
+      "description": "NVOCC house bill of lading management",
+      "displayName": "House B/L Manager",
+      "path": "bl:house"
+    },
+    {
+      "description": "Intermodal container status and location tracking",
+      "displayName": "Container Tracker",
+      "path": "container:tracker"
+    },
+    {
+      "description": "IMDG Code classification and declaration management",
+      "displayName": "Dangerous Goods Compliance",
+      "path": "dg:compliance"
+    }
+  ],
+  "capabilities": [
+    "graph.query",
+    "graph.write",
+    "agent.chat",
+    "agent.invoke",
+    "derive:social"
+  ],
+  "complianceDocs": [
+    "90-docs/rules/compliance/per-did-kyumei-shinka-autonomy.md",
+    "90-docs/platform/260403-live-data-kyumei-shinka-consolidated.md"
+  ],
+  "convoSystemPrompt": "You are the Cargo & Container Intelligence agent. You manage bills of lading, cargo manifests, container tracking, and IMDG dangerous goods declarations. Query the graph for B/L status, container locations, cargo items with HS codes, and voyage manifests. Link cargo to vessel.etzhayyim.com voyages and port.etzhayyim.com operations.",
+  "description": "Bill of lading (B/L), cargo manifest, container tracking, IMDG dangerous goods classification. Links vessel voyages to physical cargo flow.",
+  "displayName": "Cargo & Container Intelligence",
+  "domainKnowledgeRequired": true,
+  "runtime": "k8s-langserver",
+  "edge": "sveltekit-proxy",
+  "legacyExecutionTier": "T1",
+  "governance": {
+    "classification": "internal",
+    "complianceFrameworks": [
+      "IMDG Code",
+      "SOLAS VGM",
+      "CTU Code"
+    ],
+    "raci": "responsible"
+  },
+  "heartbeatRequired": true,
+  "name": "cargo",
+  "nanoid": "c4rg0m01",
+  "performerType": "service",
+  "pipelines": [
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading) RETURN bl.status AS status, count(bl) AS count LIMIT 10"
+          },
+          "fn": "graph.query",
+          "id": "blStats"
+        },
+        {
+          "args": {
+            "sql": "MATCH (c:ContainerUnit) RETURN c.status AS status, count(c) AS count LIMIT 10"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "containerStats"
+        },
+        {
+          "args": {
+            "sql": "MATCH (dg:DangerousGoodsDeclaration) RETURN dg.dgClass AS class, count(dg) AS count LIMIT 10"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "dgCount"
+        },
+        {
+          "args": {
+            "message": "Cargo intelligence report.\n\nB/L status:\n$blStats.rows\n\nContainer status:\n$containerStats.rows\n\nDangerous goods by IMDG class:\n$dgCount.rows\n\nSummarize cargo flow status, container utilization, and DG compliance."
+          },
+          "depends_on": [
+            "blStats",
+            "containerStats",
+            "dgCount"
+          ],
+          "fn": "agent.chat",
+          "id": "analyze"
+        },
+        {
+          "args": {
+            "template": "Cargo intelligence: $analyze.text"
+          },
+          "fn": "derive:social",
+          "id": "announce"
+        }
+      ],
+      "trigger": {
+        "cron": "0 */8 * * *",
+        "type": "cron"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading {vesselImo: $input.record.imoNumber}) WHERE bl.status = 'issued' RETURN bl.blNumber AS blNumber, bl.portOfLoading AS pol, bl.portOfDischarge AS pod LIMIT 50"
+          },
+          "fn": "graph.query",
+          "id": "linkManifest"
+        }
+      ],
+      "trigger": {
+        "collections": [
+          "com.etzhayyim.apps.vessel.voyage"
+        ],
+        "type": "subscribeRepos"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading {blNumber: $input.blNumber}) RETURN bl.vertex_id, bl.rkey, bl.repo, bl.did, bl.status, bl.props, bl._seq LIMIT 1"
+          },
+          "fn": "graph.query",
+          "id": "bl"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.manifest.getBl",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading) RETURN bl.vertex_id, bl.rkey, bl.repo, bl.did, bl.status, bl.props, bl._seq ORDER BY bl.issuedAt DESC LIMIT 50"
+          },
+          "fn": "graph.query",
+          "id": "bls"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.manifest.listBls",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (c:ContainerUnit {containerNumber: $input.containerNumber}) RETURN c.vertex_id, c.rkey, c.repo, c.did, c.status, c.props, c._seq LIMIT 1"
+          },
+          "fn": "graph.query",
+          "id": "container"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.manifest.trackContainer",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (c:ContainerUnit) RETURN c.vertex_id, c.rkey, c.repo, c.did, c.status, c.props, c._seq ORDER BY c.createdAt DESC LIMIT 50"
+          },
+          "fn": "graph.query",
+          "id": "containers"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.manifest.listContainers",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading {vesselImo: $input.vesselImo}) RETURN bl.vertex_id, bl.rkey, bl.repo, bl.did, bl.status, bl.props, bl._seq LIMIT 100"
+          },
+          "fn": "graph.query",
+          "id": "bls"
+        },
+        {
+          "args": {
+            "sql": "MATCH (c:ContainerUnit {currentVesselImo: $input.vesselImo}) RETURN c.vertex_id, c.rkey, c.repo, c.did, c.status, c.props, c._seq LIMIT 200"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "containers"
+        },
+        {
+          "args": {
+            "sql": "MATCH (dg:DangerousGoodsDeclaration)-[:DECLARED_ON]->(bl:BillOfLading {vesselImo: $input.vesselImo}) RETURN dg.vertex_id, dg.rkey, dg.repo, dg.did, dg.status, dg.props, dg._seq LIMIT 50"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "dg"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.manifest.getVoyageManifest",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (bl:BillOfLading) RETURN count(bl) AS bls LIMIT 1"
+          },
+          "fn": "graph.query",
+          "id": "stats"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.health",
+        "type": "xrpc"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (n:BillOfLading) WHERE n.repo = $did RETURN count(n) AS nodeCount, coalesce(max(n._seq), 0) AS latestSeq LIMIT 1"
+          },
+          "fn": "graph.query",
+          "id": "coverageNodes"
+        },
+        {
+          "args": {
+            "sql": "MATCH (n:BillOfLading) WHERE n.repo = $did RETURN count(n) AS cnt LIMIT 10"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "coverageCollections"
+        },
+        {
+          "args": {
+            "params": {
+              "actorName": "cargo",
+              "bucket": "6h",
+              "collection": "com.etzhayyim.apps.cargo.coverageSnapshot",
+              "latestSeq": 0,
+              "nanoid": "c4rg0m01",
+              "nodeCount": "$coverageNodes.rows[0].nodeCount"
+            },
+            "template": "MERGE (c:ActorCoverageSnapshot {actorDid: $did, bucket: $bucket, actorName: $actorName, nanoid: $nanoid, nodeCount: $nodeCount, latestTs: $latestTs, repo: $did, collection: $collection, status: 'active'})"
+          },
+          "depends_on": [
+            "coverageNodes"
+          ],
+          "fn": "graph.write",
+          "id": "coverageSnapshot"
+        }
+      ],
+      "trigger": {
+        "cron": "0 */6 * * *",
+        "type": "cron"
+      }
+    },
+    {
+      "steps": [
+        {
+          "args": {
+            "sql": "MATCH (c:ActorCoverageSnapshot {actorDid: $did}) RETURN c.nodeCount AS nodeCount, c.latestSeq AS latestSeq, c.topCollections AS topCollections, c._seq AS snapshotSeq LIMIT 1"
+          },
+          "fn": "graph.query",
+          "id": "coverageStats"
+        },
+        {
+          "args": {
+            "sql": "MATCH (n:BillOfLading) WHERE n.repo = $did RETURN count(n) AS totalNodes LIMIT 1"
+          },
+          "depends_on": [],
+          "fn": "graph.query",
+          "id": "coverageHealth"
+        }
+      ],
+      "trigger": {
+        "nsid": "com.etzhayyim.apps.cargo.coverage.get",
+        "type": "xrpc"
+      }
+    }
+  ],
+  "profile": {
+    "agentType": "autonomous",
+    "capabilities": [
+      "bl-management",
+      "cargo-manifest",
+      "container-tracking",
+      "imdg-compliance"
+    ],
+    "description": "Maritime cargo management — bill of lading lifecycle (draft→issued→surrendered→accomplished), cargo items with HS codes, intermodal container tracking, IMDG dangerous goods declarations. Links to vessel.etzhayyim.com voyages and port.etzhayyim.com operations.",
+    "displayName": "Cargo & Container Intelligence",
+    "isBot": true,
+    "operator": "etzhayyim.co.jp"
+  },
+  "requiredCollections": [
+    "com.etzhayyim.apps.standard.shinkaEvolution",
+    "com.etzhayyim.apps.standard.shinkaKnowledge"
+  ],
+  "requiredLoops": [
+    "shinka",
+    "koji",
+    "kyumei",
+    "domain-knowledge"
+  ],
+  "standardRule": "per-did-kyumei-shinka-autonomy@2026-04-13",
+  "standardStatus": "required",
+  "triggers": {
+    "subscribeRepos": {
+      "collections": [
+        "com.etzhayyim.apps.cargo.billOfLading",
+        "com.etzhayyim.apps.cargo.cargoItem",
+        "com.etzhayyim.apps.cargo.container",
+        "com.etzhayyim.apps.cargo.dangerousGoods",
+        "com.etzhayyim.apps.vessel.voyage",
+        "com.etzhayyim.apps.vessel.portCall"
+      ]
+    }
+  },
+  "uiType": "yoro"
+}
