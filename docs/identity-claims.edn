@@ -1,0 +1,128 @@
+;; docs/identity-claims.edn — この repo が名乗る identity claim と、その **実測**。
+;;
+;; なぜ EDN で持つか: README に散文で「A は解決するが B はしない」と書くと、
+;; 直った瞬間・悪化した瞬間の両方で README が黙って嘘になる。ここに測定値を
+;; 固定して test に突き合わせさせると、**どちらに動いても赤くなる**
+;; （直ったら「doc を更新せよ」と言って落ちる）。
+;;
+;; 手編集してよい唯一のタイミングは「実際に測り直して、README も直したとき」。
+;;
+;; :measured の :http は curl の HTTP status。0 は「接続そのものが失敗」
+;; （DNS 不在・TLS 不成立）であって 0 件・空応答ではない。
+;;
+;; 兄弟 repo `cloud-itonami/handotai-actor` の同名ファイルと同じ形にしてある。
+
+{:measured-at "2026-08-08"
+ :measured-how "curl -sL --max-time 15 -o /dev/null -w '%{http_code}'"
+
+ ;; ── identity ──────────────────────────────────────────────────────────────
+ ;; この actor は 4 つの名前で名乗られている。**解決するのは 1 つだけで、
+ ;; それはこの repo がどこにも書いていない名前である。**
+ :claims
+ [{:id          :did/manifest
+   :source      "actor-manifest.jsonld → @id"
+   :did         "did:web:cargo.etzhayyim.com"
+   ;; did:web 解決規則（W3C did:web）: method-specific id の ':' を '/' にして
+   ;; https:// を付ける。path 成分が無い場合だけ /.well-known/ を挟む。
+   :resolves-to "https://cargo.etzhayyim.com/.well-known/did.json"
+   :measured    {:http 0}
+   :note        "ホストが存在しない。"}
+
+  {:id          :did/committed
+   :source      ".well-known/did.json → id"
+   :did         "did:web:etzhayyim.github.io:com-etzhayyim-cargo"
+   :resolves-to "https://etzhayyim.github.io/com-etzhayyim-cargo/did.json"
+   :measured    {:http 404}
+   :note        "etzhayyim 時代の GitHub Pages を指したまま。repo は cloud-itonami/cargo へ
+                 移っており、旧 org の Pages はもう無い。
+                 **この文書は自分を無効化している**: 下記 :surface/github-pages のとおり
+                 cloud-itonami.github.io で実際に配信されているが、配信 URL は自分の id が
+                 導く URL ではないので、id を辿った resolver は 404 を受け取り、
+                 配信 URL を直接読んだ resolver は id 不一致で捨てる。"}
+
+  {:id          :did/live
+   :source      "**この repo のどのファイルにも書かれていない**（外から発見した）"
+   :did         "did:web:etzhayyim.com:actor:cargo"
+   :resolves-to "https://etzhayyim.com/actor/cargo/did.json"
+   :measured    {:http 200 :in-repo? false}
+   :note        "唯一解決する DID document。cargo の glyph（Cargo & Container Intelligence）を
+                 持ち、PDS は pds.aozora.app（生きている）を指す。兄弟の handotai-actor は
+                 この形（did:web:etzhayyim.com:actor:<name>）を .well-known/did.json に
+                 commit しているが、cargo は 2026-07-02 の移行 commit(90b15e4) が翌日
+                 revert(ec7015f) されたため、旧い形のまま残っている。
+                 **どの名前を正とするかはこの repo が決められない**（live document を
+                 発行しているのは etzhayyim.com 側）。ここでは測定値の固定に留める。"}
+
+  {:id          :aka/at-handle
+   :source      ".well-known/did.json → alsoKnownAs[0]"
+   :did         "at://cargo.etzhayyim.com"
+   :resolves-to "https://cargo.etzhayyim.com/.well-known/atproto-did"
+   :measured    {:http 0}
+   :note        "AT Protocol handle。:did/manifest と同じホストを指しており、同じく不在。"}]
+
+ ;; ── 配信面 ────────────────────────────────────────────────────────────────
+ :surfaces
+ [{:id       :surface/github-pages
+   :url      "https://cloud-itonami.github.io/cargo/.well-known/did.json"
+   :measured {:http 200 :serves-committed-bytes? true}
+   :note     "GitHub Pages が有効（source: main / root、build_type: legacy）。
+              つまり .well-known/did.json も actor-manifest.jsonld も**実際に公開されている**。
+              .nojekyll は名残ではなく現役。"}
+
+  {:id       :context/actor-v1
+   :url      "https://etzhayyim.com/ns/actor/v1"
+   :measured {:http 404}
+   :note     "actor-manifest.jsonld の @context。未公開なので、この文書は JSON-LD として
+              展開できない —— 実質ただの JSON である。handotai-actor でも同じ 404。"}
+
+  {:id       :pds/committed
+   :url      "https://pds.etzhayyim.com/xrpc/_health"
+   :measured {:http 530}
+   :note     "commit されている did.json の service endpoint。Cloudflare 1033（tunnel 不在）。"}
+
+  {:id       :pds/live
+   :url      "https://pds.aozora.app/xrpc/_health"
+   :measured {:http 200}
+   :note     "解決する DID document(:did/live) の service endpoint。生きている。
+              つまり commit 側は死んだ endpoint を、live 側は生きた endpoint を指している。"}]
+
+ ;; ── descriptor の国勢調査 ─────────────────────────────────────────────────
+ ;; 不変条件ではなく測定値。増えても減っても赤くする。
+ ;;
+ ;; 撤去した `actor-manifest.test.ts` は `expect(m.pipelines).toHaveLength(8)` と
+ ;; 書いていた。実際は 10 本ある。**走らないテストは、自分が古くなったことも
+ ;; 報告しない** —— この節はその再発を防ぐためにある。
+ :census
+ {:pipeline-count 10
+  :pipelines-by-trigger {"cron" 2, "subscribeRepos" 1, "xrpc" 7}
+  :step-count 19
+  :actor-count 4
+  :capability-count 5
+  :xrpc-nsid-count 7
+  ;; 宣言されているのに、どの step も呼ばない capability。過剰付与。
+  :unexercised-capabilities ["agent.invoke"]
+  ;; triggers.subscribeRepos が宣言しているのに、どの pipeline も購読しない collection。
+  ;; 購読側は vessel.voyage の 1 本だけ。
+  :declared-but-unsubscribed-collections
+  ["com.etzhayyim.apps.cargo.billOfLading"
+   "com.etzhayyim.apps.cargo.cargoItem"
+   "com.etzhayyim.apps.cargo.container"
+   "com.etzhayyim.apps.cargo.dangerousGoods"
+   "com.etzhayyim.apps.vessel.portCall"]}
+
+ ;; ── repo 内で解決しない参照 ───────────────────────────────────────────────
+ ;; network を要らない検査。
+ :dangling-references
+ [{:from "actor-manifest.jsonld → complianceDocs[0]"
+   :refers-to "90-docs/rules/compliance/per-did-kyumei-shinka-autonomy.md"
+   :exists? false
+   :note "etzhayyim monorepo 内のパス。この repo に 90-docs/ は無い。"}
+  {:from "actor-manifest.jsonld → complianceDocs[1]"
+   :refers-to "90-docs/platform/260403-live-data-kyumei-shinka-consolidated.md"
+   :exists? false}
+  {:from "NOTICE"
+   :refers-to "CHARTER-RIDER.md"
+   :exists? false
+   :note "NOTICE が Rider 本文を 'see CHARTER-RIDER.md' と指すが repo に無い。
+          LICENSE ファイルも無い（NOTICE は Apache-2.0 + Rider を主張している）。
+          handotai-actor と同じ欠落。"}]}
