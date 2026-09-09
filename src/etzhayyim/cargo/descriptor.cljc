@@ -16,7 +16,7 @@
    のに、test file はどちらも報告しなかった。走らないテストは、自分が古くなった
    ことも報告できない。だからここでは、規則を純粋な関数として書いて
    **fixture で「その規則が実際に落ちる」ことを先に見せてから**、実ファイルに当てる。"
-  (:require [kotoba.lang.text :as str]))
+  (:require [clojure.string :as str]))
 
 ;; ── did:web の解決 ──────────────────────────────────────────────────────────
 ;;
@@ -40,7 +40,7 @@
   [c]
   (let [s (str c)]
     (when (= 1 (count s))
-      (let [i (.indexOf hex-alphabet (str/lower s))]
+      (let [i (.indexOf hex-alphabet (str/lower-case s))]
         (when (nat-int? i) i)))))
 
 (defn percent-decode
