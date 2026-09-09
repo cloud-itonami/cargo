@@ -5,7 +5,7 @@
   『実物がその規則を通ること』と『docs/identity-claims.edn の測定値が実物と
   一致すること』を見る。network は要らない —— network を要る検査は
   network-test にある。"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [cljs.reader :as reader]
             [etzhayyim.cargo.descriptor :as d]
