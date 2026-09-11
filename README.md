@@ -21,8 +21,8 @@ monorepo の `20-actors/`（`NOTICE` 参照）。
 散文ではなく実行で確かめられる。
 
 ```bash
-nbb --classpath src:test run_tests.cljk             # 27 tests / 48 assertions（network 不要）
-nbb --classpath src:test run_tests.cljk --network   # 59 assertions（claims を実際に取りに行く）
+kbb --backend sci --classpath src:test run_tests.cljk             # 27 tests / 48 assertions（network 不要）
+kbb --backend sci --classpath src:test run_tests.cljk --network   # 59 assertions（claims を実際に取りに行く）
 ```
 
 `--network` は `docs/identity-claims.edn` の `:measured` を curl で照合する。
