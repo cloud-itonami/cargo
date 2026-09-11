@@ -12,7 +12,7 @@ monorepo の `20-actors/`（`NOTICE` 参照）。
 | `actor-manifest.jsonld` | actor 宣言。10 pipeline（cron×2 / subscribeRepos×1 / xrpc×7）、19 step、4 actor path |
 | `.well-known/did.json` | DID document（**解決しない** — 下記） |
 | `docs/identity-claims.edn` | 名乗りと配信面の**実測値を固定したもの**。テストの期待値 |
-| `src/etzhayyim/cargo/descriptor.cljc` | descriptor の適合規則。純粋（I/O 無し） |
+| `src/etzhayyim/cargo/descriptor.cljk` | descriptor の適合規則。純粋（I/O 無し） |
 | `test/` | 上の規則を壊した fixture で検査し、実ファイルと固定値を突き合わせる |
 | `NOTICE` / `.nojekyll` | 出所・ライセンス表示 / GitHub Pages 用（**現役**） |
 
@@ -21,8 +21,8 @@ monorepo の `20-actors/`（`NOTICE` 参照）。
 散文ではなく実行で確かめられる。
 
 ```bash
-nbb --classpath src:test run_tests.cljs             # 27 tests / 48 assertions（network 不要）
-nbb --classpath src:test run_tests.cljs --network   # 59 assertions（claims を実際に取りに行く）
+nbb --classpath src:test run_tests.cljk             # 27 tests / 48 assertions（network 不要）
+nbb --classpath src:test run_tests.cljk --network   # 59 assertions（claims を実際に取りに行く）
 ```
 
 `--network` は `docs/identity-claims.edn` の `:measured` を curl で照合する。
