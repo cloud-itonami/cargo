@@ -1,8 +1,8 @@
 #!/usr/bin/env nbb
-;; run_tests.cljs — cargo descriptor の検査。
+;; run_tests.cljk — cargo descriptor の検査。
 ;;
-;;   nbb --classpath src:test run_tests.cljs             構造 + 固定値（network 不要）
-;;   nbb --classpath src:test run_tests.cljs --network   claims の測定値を実際に取りに行く
+;;   nbb --classpath src:test run_tests.cljk             構造 + 固定値（network 不要）
+;;   nbb --classpath src:test run_tests.cljk --network   claims の測定値を実際に取りに行く
 ;;
 ;; この repo には 2026-05 から `actor-manifest.test.ts`（vitest）が置かれていたが、
 ;; `package.json` も vitest も無く **一度も実行できなかった**。その間に manifest の
