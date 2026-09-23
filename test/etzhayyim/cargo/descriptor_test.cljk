@@ -8,7 +8,7 @@
 
   各 deftest の docstring は「どの退行を塞いでいるか」を書く。塞いでいる先が
   書けない test は水増しである。"
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [etzhayyim.cargo.descriptor :as d]))
 
 ;; ── fixture ─────────────────────────────────────────────────────────────────
