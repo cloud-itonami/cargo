@@ -71,7 +71,7 @@ Cloudflare 1033（tunnel 不在、実測 530）、解決する側が指す `pds.
   `.well-known/did.json` は別の DID を名乗るようになった
 
 走らないテストは、自分が古くなったことも報告しない。加えて workspace の規則
-（superproject `CLAUDE.md`）で新規の `.ts` / `.mjs` / `.sh` は禁止、script host は
+（superproject `AGENTS.md`）で新規の `.ts` / `.mjs` / `.sh` は禁止、script host は
 nbb に一本化されている。
 
 引き継いだ検査（`fn: "custom"` の禁止、step の形、nsid の一意性）は `test/` に

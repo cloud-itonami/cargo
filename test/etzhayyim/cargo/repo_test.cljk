@@ -105,7 +105,7 @@
   走らないテスト file は、緑にも赤にもならないぶん、無いより悪い ——
   『テストがある』という外見だけが残る。
 
-  workspace の規則（superproject CLAUDE.md）でも新規 .ts / .mjs / .sh は禁止で、
+  workspace の規則（superproject AGENTS.md）でも新規 .ts / .mjs / .sh は禁止で、
   script host は nbb に一本化されている。"
   (let [ts (filter #(str/ends-with? % ".ts") (.readdirSync fs repo-root))]
     (is (= [] (vec ts))

@@ -10,7 +10,7 @@
 ;; 割れたが、test file はどちらも報告していない。走らないテストは、自分が古く
 ;; なったことも報告しない。
 ;;
-;; workspace の規則（superproject CLAUDE.md）で script host は nbb に一本化されて
+;; workspace の規則（superproject AGENTS.md）で script host は nbb に一本化されて
 ;; おり、新規の .ts / .mjs / .sh は禁止。よって置き換え先は nbb + cljs.test である。
 (ns run-tests
   (:require [kotoba.test :as t]
